@@ -2,13 +2,21 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
 using System.Reflection;
-
 using Discord;
 using Discord.WebSocket;
+using RestSharp;
+using RestSharp.Authenticators;
+using RestSharp.Deserializers;
+using RestSharp.Extensions;
+using RestSharp.Serializers;
+using RestSharp.Validation;
 using HookAppDiscord.DataHolders;
+using HookAppDiscord.Microsoft;
+using HookAppDiscord.WCF;
 
 namespace HookAppDiscord
 {
@@ -17,9 +25,18 @@ namespace HookAppDiscord
         private Settings _settings;
         private DiscordSocketClient _client;
 
+        private Translate _translate;
+        private SocketChannel _translationChannel;
+
+        private WCFServer _wcfServer;
+
         public Session(Settings settings)
         {
             _settings = settings;
+            _translate = new Translate(settings.AzureToken, settings.TranslateTo);
+
+            _wcfServer = new WCFServer();
+            _wcfServer.Start();
 
             _client = new DiscordSocketClient();
             _client.Log += _client_Log;
@@ -29,7 +46,13 @@ namespace HookAppDiscord
 
         private Task _client_MessageReceived(SocketMessage arg)
         {
-            Console.WriteLine($"Received message: {arg.Content}");
+            if (!arg.Author.IsBot)
+            {
+                string message = _translate.GetTranslatedMessage(arg);
+                if (message.Length > 0)
+                    ((ISocketMessageChannel)_translationChannel).SendMessageAsync(message);
+            }
+
             return Task.CompletedTask;
         }
 
@@ -47,14 +70,16 @@ namespace HookAppDiscord
                 + $" Build date: {File.GetLastWriteTime(Assembly.GetExecutingAssembly().Location)}\n"
                 + $" Discord bot for keeping track of GitHub projects\n"
                 + " ----------------------------------------------------------------\n\n\n";
-
+            
+            _translationChannel = _client.GetChannel(_settings.TranslationChannel);
             Console.WriteLine(ascii);
+
             return Task.CompletedTask;
         }
 
         public async Task Connect()
         {
-            await _client.LoginAsync(TokenType.Bot, _settings.Token);
+            await _client.LoginAsync(TokenType.Bot, _settings.DiscordToken);
             await _client.StartAsync();
         }
 

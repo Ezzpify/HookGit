@@ -14,7 +14,13 @@ namespace HookAppDiscord.DataHolders
         [JsonIgnore]
         public string Error { get; set; }
 
-        public string Token { get; set; } = string.Empty;
+        public string DiscordToken { get; set; } = string.Empty;
+
+        public string AzureToken { get; set; } = string.Empty;
+
+        public string TranslateTo { get; set; } = "en";
+
+        public ulong TranslationChannel { get; set; } = 0;
 
         public Settings(string error = "")
         {
