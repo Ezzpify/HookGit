@@ -7,14 +7,22 @@ using System.ServiceModel;
 using System.ServiceModel.Description;
 using System.ServiceModel.Web;
 using System.Threading;
+using HookAppDiscord.Github;
 
 namespace HookAppDiscord.WCF
 {
     class WCFServer
     {
+        public static GithubWebhookDelivery DeliveryCallback;
+
         private WebServiceHost _host;
         private ServiceEndpoint _ep;
         private ServiceDebugBehavior _stp;
+
+        public WCFServer(GithubWebhookDelivery delivery)
+        {
+            DeliveryCallback = delivery;
+        }
 
         public void Start()
         {
@@ -29,11 +37,6 @@ namespace HookAppDiscord.WCF
                 Console.WriteLine("Waiting for WCF server...");
                 Thread.Sleep(1000);
             }
-        }
-
-        public CommunicationState GetState()
-        {
-            return _host.State;
         }
     }
 }

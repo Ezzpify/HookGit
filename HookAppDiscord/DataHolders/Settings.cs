@@ -22,6 +22,8 @@ namespace HookAppDiscord.DataHolders
 
         public ulong TranslationChannel { get; set; } = 0;
 
+        public ulong GithubChannel { get; set; } = 0;
+
         public Settings(string error = "")
         {
             Error = error;
