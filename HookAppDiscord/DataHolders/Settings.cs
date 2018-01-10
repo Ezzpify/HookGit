@@ -18,6 +18,8 @@ namespace HookAppDiscord.DataHolders
 
         public string AzureToken { get; set; } = string.Empty;
 
+        public string CleverbotToken { get; set; } = string.Empty;
+
         public string TranslateTo { get; set; } = "en";
 
         public ulong TranslationChannel { get; set; } = 0;

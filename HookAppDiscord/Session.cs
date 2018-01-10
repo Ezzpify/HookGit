@@ -20,6 +20,7 @@ using HookAppDiscord.Microsoft;
 using HookAppDiscord.WCF;
 using HookAppDiscord.Github;
 using HookAppDiscord.Github.EventHolders;
+using Cleverbot.Net;
 
 namespace HookAppDiscord
 {
@@ -34,6 +35,8 @@ namespace HookAppDiscord
         private WCFServer _wcfServer;
         private ISocketMessageChannel _githubChannel;
 
+        private CleverbotSession _cleverbot;
+
         public Session(Settings settings)
         {
             _settings = settings;
@@ -42,6 +45,8 @@ namespace HookAppDiscord
             GithubWebhookDelivery callback = GithubDelivery;
             _wcfServer = new WCFServer(callback);
             _wcfServer.Start();
+
+            _cleverbot = new CleverbotSession(_settings.CleverbotToken);
 
             _client = new DiscordSocketClient();
             _client.Log += _client_Log;
@@ -79,19 +84,25 @@ namespace HookAppDiscord
             return Task.CompletedTask;
         }
 
-        private Task _client_MessageReceived(SocketMessage arg)
+        private async Task _client_MessageReceived(SocketMessage arg)
         {
             if (!arg.Author.IsBot)
             {
                 string message = _translate.GetTranslatedMessage(arg);
                 if (message.Length > 0)
-                    _translationChannel.SendMessageAsync(message);
+                    await _translationChannel.SendMessageAsync(message);
 
-                if (arg.Channel.Id == _githubChannel.Id)
-                    arg.DeleteAsync();
+                if (arg.MentionedUsers.Select(o => o.Id).Contains(_client.CurrentUser.Id))
+                {
+                    CleverbotResponse response = await _cleverbot.GetResponseAsync(message);
+                    await arg.Channel.SendMessageAsync(response.Response);
+                }
             }
+        }
 
-            return Task.CompletedTask;
+        private async Task<CleverbotResponse> GetCleverbotResponse(string message)
+        {
+            return await _cleverbot.GetResponseAsync(message);
         }
 
         private Task _client_Log(LogMessage arg)

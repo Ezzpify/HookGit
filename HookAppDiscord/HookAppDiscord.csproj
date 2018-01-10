@@ -39,6 +39,9 @@
     <ApplicationIcon>github-logo.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Cleverbot.Net">
+      <HintPath>..\packages\Cleverbot.0.9.0\Cleverbot.Net.dll</HintPath>
+    </Reference>
     <Reference Include="Discord.Net.Commands, Version=1.0.2.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Discord.Net.Commands.1.0.2\lib\netstandard1.1\Discord.Net.Commands.dll</HintPath>
     </Reference>
