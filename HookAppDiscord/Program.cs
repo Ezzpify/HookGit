@@ -16,7 +16,8 @@ namespace HookAppDiscord
 
         public async Task MainAsync()
         {
-            Console.Title = "HookGit | Discord bot";
+            Console.Title = "HookGit | Discord utility";
+            Console.WriteLine("Loading...");
             var settings = Settings.FromJson(Const.SETTINGS_FILE_PATH);
             if (!String.IsNullOrEmpty(settings.Error))
             {
