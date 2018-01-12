@@ -41,14 +41,26 @@ namespace HookAppDiscord.Discord.Modules
         [Summary("Rolls a random number from 1 to n")]
         public async Task RollAsync([Summary("Max roll")] int num)
         {
-            await Context.Channel.SendMessageAsync($"*{Context.User.Username} rolled **{Utils.GetRandom().Next(1, num)}***");
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{Context.User.Username} rolled {Utils.GetRandom().Next(1, num)}"
+            };
+
+            await Context.Channel.SendMessageAsync("", false, builder.Build());
         }
 
         [Command("8ball")]
         [Summary("Gives you a certain answer to your question")]
         public async Task BallAsync([Remainder] [Summary("Question")] string question)
         {
-            await Context.Channel.SendMessageAsync($"*{_eightBallAnswers[Utils.GetRandom().Next(0, _eightBallAnswers.Count - 1)]}*");
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{_eightBallAnswers[Utils.GetRandom().Next(0, _eightBallAnswers.Count - 1)]}"
+            };
+
+            await Context.Channel.SendMessageAsync("", false, builder.Build());
         }
     }
 }

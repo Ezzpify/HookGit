@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 
 namespace HookAppDiscord.DataHolders
 {
-    class Settings
+    public class Settings
     {
         [JsonIgnore]
         public string Error { get; set; }
@@ -35,6 +35,10 @@ namespace HookAppDiscord.DataHolders
         public ulong StatusChannel { get; set; } = 0;
 
         public double StatusPingInterval { get; set; } = 15.00;
+
+        public List<User> Users { get; set; } = new List<User>();
+
+        public List<string> Labels { get; set; } = new List<string>();
 
         public Settings(string error = "")
         {

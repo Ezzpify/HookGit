@@ -86,6 +86,7 @@ namespace HookAppDiscord
                 .AddSingleton(_client)
                 .AddSingleton(_commands)
                 .AddSingleton(_githubClient)
+                .AddSingleton(_settings)
                 .BuildServiceProvider();
             
             _commands.AddModulesAsync(Assembly.GetEntryAssembly());

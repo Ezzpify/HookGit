@@ -12,18 +12,6 @@ namespace HookAppDiscord.Discord
 {
     class DiscordMessageFormatter
     {
-        public static string GetServerStatsMessage(ServerStats stats)
-        {
-            return string.Format("Here are the current stats\n```\nNumber of users: {0}\nFacebook users: {1}\nGoogle users: {2}\nNumber of rates: {3}\nNumber of matches: {4}\nDeleted users count: {5}\nActive users in last 3 days: {6}\n```",
-                stats.numOfUsers,
-                stats.facebookUsers,
-                stats.googleUsers,
-                stats.numOfRates,
-                stats.numOfMatches,
-                stats.deletedUsers,
-                stats.lastActiveUsers);
-        }
-
         public static string GetRestResponseMessage(IRestResponse code, string endpoint, long responseTime)
         {
             return string.Format("@everyone\n\n**Server ping didn't return OK. Server might be down!**\n\nResponse status:\n```Code: {0}\nDescription: {1}\nResponse time: {2} ms\nEndpoint hit: {3}\n```",
