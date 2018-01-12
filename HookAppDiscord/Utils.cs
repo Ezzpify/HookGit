@@ -34,5 +34,12 @@ namespace HookAppDiscord
             var start = source.IndexOf(first) + first.Length;
             return source.Substring(start, source.IndexOf(second) - start);
         }
+
+        public static string FixJsonString(string json)
+        {
+            json = json.TrimStart('"');
+            json = json.TrimEnd('"');
+            return json.Replace(@"\", "");
+        }
     }
 }

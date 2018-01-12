@@ -8,6 +8,16 @@ namespace HookAppDiscord.Github.EventHolders
 {
     class ProjectCardEvent
     {
+        public class Note
+        {
+            public string from { get; set; }
+        }
+
+        public class Changes
+        {
+            public Note note { get; set; }
+        }
+
         public class Creator
         {
             public string login { get; set; }
@@ -170,6 +180,7 @@ namespace HookAppDiscord.Github.EventHolders
         public class RootObject
         {
             public string action { get; set; }
+            public Changes changes { get; set; }
             public ProjectCard project_card { get; set; }
             public Repository repository { get; set; }
             public Organization organization { get; set; }

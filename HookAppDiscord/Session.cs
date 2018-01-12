@@ -2,25 +2,30 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
 using System.Reflection;
+using System.Diagnostics;
+using System.Net;
 using Discord;
 using Discord.WebSocket;
+using Discord.Commands;
 using RestSharp;
-using RestSharp.Authenticators;
-using RestSharp.Deserializers;
-using RestSharp.Extensions;
-using RestSharp.Serializers;
-using RestSharp.Validation;
+using Octokit;
+using Octokit.Internal;
+using Octokit.Reactive;
 using Newtonsoft.Json;
+using Cleverbot.Net;
+using Microsoft.Extensions.DependencyInjection;
 using HookAppDiscord.DataHolders;
 using HookAppDiscord.Microsoft;
 using HookAppDiscord.WCF;
 using HookAppDiscord.Github;
+using HookAppDiscord.HookApp;
+using HookAppDiscord.Discord;
 using HookAppDiscord.Github.EventHolders;
-using Cleverbot.Net;
 
 namespace HookAppDiscord
 {
@@ -28,30 +33,79 @@ namespace HookAppDiscord
     {
         private Settings _settings;
         private DiscordSocketClient _client;
+        private CommandService _commands;
+        private IServiceProvider _services;
 
         private Translate _translate;
         private ISocketMessageChannel _translationChannel;
 
         private WCFServer _wcfServer;
         private ISocketMessageChannel _githubChannel;
+        private GitHubClient _githubClient;
+
+        private ISocketMessageChannel _statusChannel;
+        private int _statusResponseErrors;
 
         private CleverbotSession _cleverbot;
 
         public Session(Settings settings)
         {
             _settings = settings;
+
+            Console.WriteLine("Setting up endpoint urls...");
+            ApiEndpoint.ServerStatsUrl = _settings.ServerEndpointStats;
+
+            Console.WriteLine("Setting up translation...");
             _translate = new Translate(settings.AzureToken, settings.TranslateTo);
 
+            Console.WriteLine("Setting up github webhook...");
             GithubWebhookDelivery callback = GithubDelivery;
             _wcfServer = new WCFServer(callback);
             _wcfServer.Start();
 
+            Console.WriteLine("Setting up github access...");
+            var credentials = new InMemoryCredentialStore(new Credentials(_settings.GithubToken));
+            _githubClient = new GitHubClient(new ProductHeaderValue("HookApp"));
+            _githubClient.Credentials = new Credentials(_settings.GithubToken);
+
+            Console.WriteLine("Setting up cleverbot...");
             _cleverbot = new CleverbotSession(_settings.CleverbotToken);
 
+            Console.WriteLine("Setting up discord...");
             _client = new DiscordSocketClient();
             _client.Log += _client_Log;
             _client.Ready += _client_Ready;
             _client.MessageReceived += _client_MessageReceived;
+            InstallDiscordCommands();
+        }
+
+        private void InstallDiscordCommands()
+        {
+            _commands = new CommandService();
+            _services = new ServiceCollection()
+                .AddSingleton(_client)
+                .AddSingleton(_commands)
+                .AddSingleton(_githubClient)
+                .BuildServiceProvider();
+            
+            _commands.AddModulesAsync(Assembly.GetEntryAssembly());
+        }
+
+        private async Task HandleCommandAsync(SocketMessage messageParam)
+        {
+            var message = (SocketUserMessage)messageParam;
+            if (message == null)
+                return;
+
+            int argPos = 0;
+            if (!(message.HasCharPrefix('!', ref argPos) || message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
+                return;
+            
+            var context = new SocketCommandContext(_client, message);
+
+            var result = await _commands.ExecuteAsync(context, argPos, _services);
+            if (!result.IsSuccess)
+                await context.Channel.SendMessageAsync(result.ErrorReason);
         }
 
         public async Task Connect()
@@ -73,14 +127,17 @@ namespace HookAppDiscord
                 + $" Version: {Utils.GetVersion()}\n"
                 + $" Build date: {File.GetLastWriteTime(Assembly.GetExecutingAssembly().Location)}\n"
                 + $" Discord utility for keeping track of GitHub projects\n"
-                + " ----------------------------------------------------------------\n\n\n";
+                + " ----------------------------------------------------------------\n\n";
 
+            _client.SetGameAsync("HookApp");
             _translationChannel = (ISocketMessageChannel)_client.GetChannel(_settings.TranslationChannel);
             _githubChannel = (ISocketMessageChannel)_client.GetChannel(_settings.GithubChannel);
+            _statusChannel = (ISocketMessageChannel)_client.GetChannel(_settings.StatusChannel);
+
+            Timer t = new Timer(ServerStatusTimer, null, 0, (int)TimeSpan.FromMinutes(_settings.StatusPingInterval).TotalMilliseconds);
 
             Console.Clear();
             Console.WriteLine(ascii);
-
             return Task.CompletedTask;
         }
 
@@ -97,6 +154,10 @@ namespace HookAppDiscord
                     CleverbotResponse response = await _cleverbot.GetResponseAsync(message);
                     await arg.Channel.SendMessageAsync(response.Response);
                 }
+                else
+                {
+                    await HandleCommandAsync(arg);
+                }
             }
         }
 
@@ -110,7 +171,45 @@ namespace HookAppDiscord
             return Task.CompletedTask;
         }
 
-        public T GetDelivery<T>(string jsonBody) where T : new()
+        private void ServerStatusTimer(Object o)
+        {
+            IRestResponse response = null;
+            var watch = Stopwatch.StartNew();
+            string exceptionMessage = string.Empty;
+
+            try
+            {
+                var client = new RestClient(new Uri(_settings.ServerEndpointStatus));
+                var request = new RestRequest(Method.GET);
+                response = client.Execute(request);
+            }
+            catch (Exception ex)
+            {
+                exceptionMessage = ex.Message;
+            }
+
+            watch.Stop();
+            Console.WriteLine($"ServerEndpointStatus ping took {watch.ElapsedMilliseconds} ms.");
+
+            if (response != null)
+            {
+                _statusResponseErrors = 0;
+                if (response.StatusCode != HttpStatusCode.OK)
+                {
+                    _statusChannel.SendMessageAsync(DiscordMessageFormatter.GetRestResponseMessage(response, _settings.ServerEndpointStatus, watch.ElapsedMilliseconds));
+                }
+            }
+            else
+            {
+                if (++_statusResponseErrors >= 3)
+                {
+                    _statusChannel.SendMessageAsync(DiscordMessageFormatter.GetRestResponseFailedMessage(exceptionMessage, _settings.ServerEndpointStatus));
+                    _statusResponseErrors = 0;
+                }
+            }
+        }
+
+        private T GetDelivery<T>(string jsonBody) where T : new()
         {
             try
             {
@@ -123,7 +222,7 @@ namespace HookAppDiscord
             }
         }
 
-        public void GithubDelivery(string eventName, string jsonBody)
+        private void GithubDelivery(string eventName, string jsonBody)
         {
             switch (eventName)
             {
@@ -176,7 +275,13 @@ namespace HookAppDiscord
 
         private void SendEventMessage(string message)
         {
-            _githubChannel.SendMessageAsync(message + "\n" + "------------------------------------");
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = message
+            };
+            
+            _githubChannel.SendMessageAsync("", false, builder.Build());
         }
 
         private void OnPush(PushEvent.RootObject obj)
@@ -249,6 +354,29 @@ namespace HookAppDiscord
             //https://developer.github.com/v3/activity/events/types/#projectcardevent
             if (obj == null)
                 return;
+
+            switch (obj.action)
+            {
+                case "created":
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardCreatedMessage(obj));
+                    break;
+
+                case "edited":
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardEditedMessage(obj));
+                    break;
+
+                case "converted":
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardConvertedMessage(obj));
+                    break;
+
+                case "moved":
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardMovedMessage(obj));
+                    break;
+
+                case "deleted":
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardDeletedMessage(obj));
+                    break;
+            }
         }
 
         private void OnCreate(CreateEvent.RootObject obj)
@@ -270,6 +398,21 @@ namespace HookAppDiscord
             //https://developer.github.com/v3/activity/events/types/#labelevent
             if (obj == null)
                 return;
+
+            switch (obj.action)
+            {
+                case "created":
+                    SendEventMessage(DiscordMessageFormatter.GetOnLabelCreatedMessage(obj));
+                    break;
+
+                case "edited":
+                    SendEventMessage(DiscordMessageFormatter.GetOnLabelEditedMessage(obj));
+                    break;
+
+                case "deleted":
+                    SendEventMessage(DiscordMessageFormatter.GetOnLabelDeletedMessage(obj));
+                    break;
+            }
         }
 
         private void OnMilestone(MilestoneEvent.RootObject obj)

@@ -20,11 +20,21 @@ namespace HookAppDiscord.DataHolders
 
         public string CleverbotToken { get; set; } = string.Empty;
 
+        public string GithubToken { get; set; } = string.Empty;
+
+        public string ServerEndpointStatus { get; set; } = "http://0.0.0.0:9000/json/endpoint";
+
+        public string ServerEndpointStats { get; set; } = "http://192.168.0.38:9100/json/endpoint";
+
         public string TranslateTo { get; set; } = "en";
 
         public ulong TranslationChannel { get; set; } = 0;
 
         public ulong GithubChannel { get; set; } = 0;
+
+        public ulong StatusChannel { get; set; } = 0;
+
+        public double StatusPingInterval { get; set; } = 15.00;
 
         public Settings(string error = "")
         {

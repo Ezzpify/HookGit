@@ -15,6 +15,16 @@ namespace HookAppDiscord.Github.EventHolders
             public string color { get; set; }
         }
 
+        public class Name
+        {
+            public string from { get; set; }
+        }
+
+        public class Changes
+        {
+            public Name name { get; set; }
+        }
+
         public class Owner
         {
             public string login { get; set; }
@@ -148,6 +158,7 @@ namespace HookAppDiscord.Github.EventHolders
         {
             public string action { get; set; }
             public Label label { get; set; }
+            public Changes changes { get; set; }
             public Repository repository { get; set; }
             public Organization organization { get; set; }
             public Sender sender { get; set; }
