@@ -22,7 +22,24 @@ namespace HookAppDiscord.HookApp
             var client = new RestClient(ServerStatsUrl);
             var request = new RestRequest(Method.GET);
             var response = client.Execute(request);
-            return JsonConvert.DeserializeObject<ServerStats>(Utils.FixJsonString(response.Content));
+
+            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                string content = response.Content;
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    try
+                    {
+                        return JsonConvert.DeserializeObject<ServerStats>(Utils.FixJsonString(response.Content));
+                    }
+                    catch (JsonException ex)
+                    {
+                        return new ServerStats() { error = ex.Message };
+                    }
+                }
+            }
+
+            return new ServerStats() { error = $"HttpRequest failed with error message: {response.ErrorMessage}" };
         }
     }
 }

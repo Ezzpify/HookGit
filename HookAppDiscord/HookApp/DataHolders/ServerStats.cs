@@ -8,6 +8,8 @@ namespace HookAppDiscord.HookApp.DataHolders
 {
     class ServerStats
     {
+        public string error { get; set; }
+
         public long numOfUsers { get; set; }
 
         public long facebookUsers { get; set; }

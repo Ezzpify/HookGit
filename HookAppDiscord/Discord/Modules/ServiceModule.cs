@@ -24,6 +24,13 @@ namespace HookAppDiscord.Discord.Modules
             {
                 case "hookapp":
                     var serverStatus = ApiEndpoint.GetServerStats();
+                    if (!string.IsNullOrWhiteSpace(serverStatus.error))
+                    {
+                        builder.Description = $"Encountered an error while getting stats:\n{serverStatus.error}";
+                        await Context.Channel.SendMessageAsync("", false, builder.Build());
+                        return;
+                    }
+
                     builder.Description = "Here are some stats for HookApp";
 
                     builder.AddField(x =>
