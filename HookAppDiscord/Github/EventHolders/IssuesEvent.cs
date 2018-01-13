@@ -222,6 +222,7 @@ namespace HookAppDiscord.Github.EventHolders
             public string action { get; set; }
             public Issue issue { get; set; }
             public Label label { get; set; }
+            public Assignee assignee { get; set; }
             public Repository repository { get; set; }
             public Sender sender { get; set; }
         }

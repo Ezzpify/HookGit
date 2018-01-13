@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using RestSharp;
+using Discord;
 using System.Globalization;
 using HookAppDiscord.Github.EventHolders;
 using HookAppDiscord.HookApp.DataHolders;
@@ -12,213 +13,602 @@ namespace HookAppDiscord.Discord
 {
     class DiscordMessageFormatter
     {
-        public static string GetRestResponseMessage(IRestResponse code, string endpoint, long responseTime)
+        public static EmbedBuilder GetServiceHookappMessage(ServerStats stats)
         {
-            return string.Format("@everyone\n\n**Server ping didn't return OK. Server might be down!**\n\nResponse status:\n```Code: {0}\nDescription: {1}\nResponse time: {2} ms\nEndpoint hit: {3}\n```",
-                (int)code.StatusCode,
-                code.StatusDescription,
-                responseTime,
-                endpoint);
-        }
-
-        public static string GetRestResponseFailedMessage(string error, string endpoint)
-        {
-            return string.Format("@everyone\n\n**Server ping failed! Server could be down!**\n\nInformation:\n```\nError: {0}\nEndpoint hit: {1}\n```",
-                error,
-                endpoint);
-        }
-
-        public static string GetOnPushMessage(PushEvent.RootObject obj)
-        {
-            return string.Format("**{0} pushed {1} commit(s) to '{2}'**\n\n{3}",
-                obj.sender.login,
-                obj.commits.Count,
-                obj.repository.full_name,
-                GetCommitsFormatted(obj.commits));
-        }
-
-        private static string GetCommitsFormatted(List<PushEvent.Commit> commits)
-        {
-            var returnList = new List<string>();
-            foreach (var commit in commits)
+            var builder = new EmbedBuilder()
             {
-                returnList.Add(string.Format("{0}\n```\n{1}\n\nAdded: {2}\nRemoved: {3}\nModified: {4}\n```",
-                    commit.url,
-                    commit.message,
-                    commit.added.Count,
-                    commit.removed.Count,
-                    commit.modified.Count));
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = "Here are some stats for HookApp"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Number of users";
+                x.Value = stats.numOfUsers;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Facebook users";
+                x.Value = stats.facebookUsers;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Google users";
+                x.Value = stats.googleUsers;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Number of rates";
+                x.Value = stats.numOfRates;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Number of matches";
+                x.Value = stats.numOfMatches;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Deleted accounts";
+                x.Value = stats.deletedUsers;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Active users in last 3 days";
+                x.Value = stats.lastActiveUsers;
+                x.IsInline = false;
+            });
+
+            return builder;
+        }
+
+        public static EmbedBuilder GetRestResponseMessage(IRestResponse code, string endpoint, long responseTime)
+        {
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = "Server ping didn't return OK. Server might be down!"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Status code";
+                x.Value = (int)code.StatusCode;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Response status";
+                x.Value = string.IsNullOrWhiteSpace(code.StatusDescription) ? "Description not available" : code.StatusDescription;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Response time";
+                x.Value = responseTime;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Endpoint hit";
+                x.Value = endpoint;
+                x.IsInline = false;
+            });
+
+            return builder;
+        }
+
+        public static EmbedBuilder GetRestResponseFailedMessage(string error, string endpoint)
+        {
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = "Server ping failed! Server could be down!"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Error";
+                x.Value = error;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Endpoint hit";
+                x.Value = endpoint;
+                x.IsInline = false;
+            });
+
+            return builder;
+        }
+
+        public static EmbedBuilder GetOnPushMessage(PushEvent.RootObject obj)
+        {
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} pushed {obj.commits.Count} commit(s) to {obj.repository.full_name}"
+            };
+
+            foreach (var commit in obj.commits)
+            {
+                builder.AddField(x =>
+                {
+                    x.Name = commit.message;
+                    x.Value = $"{commit.url}\nAdded: {commit.added.Count}\nRemoved: {commit.removed.Count}\nModified: {commit.modified.Count}";
+                    x.IsInline = false;
+                });
             }
 
-            return string.Join("\n\n", returnList);
+            return builder;
         }
 
-        public static string GetOnCommitCommentMessage(CommitCommentEvent.RootObject obj)
+        public static EmbedBuilder GetOnCommitCommentMessage(CommitCommentEvent.RootObject obj)
         {
-            return string.Format("**{0} {1} a comment on commit '{2}' for '{3}'**\n\n{4}\n```\n{5}\n```",
-                obj.comment.user.login,
-                obj.action,
-                obj.comment.commit_id,
-                obj.repository.full_name,
-                obj.comment.html_url,
-                obj.comment.body);
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} {obj.action} a comment on commit {obj.comment.commit_id} for {obj.repository.full_name}"
+            };
+            
+            builder.AddField(x =>
+            {
+                x.Name = "Comment";
+                x.Value = obj.comment.body;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.comment.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnIssuesOpenedMessage(IssuesEvent.RootObject obj)
+        public static EmbedBuilder GetOnIssuesOpenedMessage(IssuesEvent.RootObject obj)
         {
-            return string.Format("**{0} opened an issue for '{1}'**\n\n{2}\n```\n• {3}\n\n{4}\n\nLabels: {5}\nAssignees: {6}\n```",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.issue.html_url,
-                obj.issue.title,
-                obj.issue.body,
-                string.Join(", ", obj.issue.labels.Select(o => o.name)),
-                string.Join(", ", obj.issue.assignees.Select(o => o.login)));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} opened issue #{obj.issue.number} for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = obj.issue.title;
+                x.Value = obj.issue.body;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Assignees";
+                x.Value = obj.issue.assignees.Count > 0 ? string.Join(", ", obj.issue.assignees.Select(o => o.login)) : "None";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Labels";
+                x.Value = obj.issue.labels.Count > 0 ? string.Join(", ", obj.issue.labels.Select(o => o.name)) : "None";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.issue.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnIssuesClosedMessage(IssuesEvent.RootObject obj)
+        public static EmbedBuilder GetOnIssuesClosedMessage(IssuesEvent.RootObject obj)
         {
-            return string.Format("**{0} closed issue #{1} for '{2}'**\n\n{3}",
-                obj.sender.login,
-                obj.issue.number,
-                obj.repository.full_name,
-                obj.issue.html_url);
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} closed issue #{obj.issue.number} for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = obj.issue.title;
+                x.Value = obj.issue.body;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.issue.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnIssuesReopenedMessage(IssuesEvent.RootObject obj)
+        public static EmbedBuilder GetOnIssuesReopenedMessage(IssuesEvent.RootObject obj)
         {
-            return string.Format("**{0} re-opened an issue for '{1}'**\n\n{2}\n```\n• {3}\n\n{4}\n\nLabels: {5}\nAssignees: {6}\n```",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.issue.html_url,
-                obj.issue.title,
-                obj.issue.body,
-                string.Join(", ", obj.issue.labels.Select(o => o.name)),
-                string.Join(", ", obj.issue.assignees.Select(o => o.login)));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} re-opened issue #{obj.issue.number} for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = obj.issue.title;
+                x.Value = obj.issue.body;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Assignees";
+                x.Value = obj.issue.assignees.Count > 0 ? string.Join(", ", obj.issue.assignees.Select(o => o.login)) : "None";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Labels";
+                x.Value = obj.issue.labels.Count > 0 ? string.Join(", ", obj.issue.labels.Select(o => o.name)) : "None";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.issue.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnIssuesAssignedMessage(IssuesEvent.RootObject obj)
+        public static EmbedBuilder GetOnIssuesAssignedMessage(IssuesEvent.RootObject obj)
         {
-            return string.Format("**{0} assigned a user to issue #{1} for '{2}'**\n\n{3}\n```\n+ {4}\n\nCurrent assignees: {5}\n```",
-                obj.sender.login,
-                obj.issue.number,
-                obj.repository.full_name,
-                obj.issue.html_url,
-                obj.issue.assignee.login,
-                string.Join(", ", obj.issue.assignees.Select(o => o.login)));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} assigned user to issue #{obj.issue.number} for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Assigned user";
+                x.Value = obj.assignee.login;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Users assigned to issue";
+                x.Value = obj.issue.assignees.Count > 0 ? string.Join(", ", obj.issue.assignees.Select(o => o.login)) : "None";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.issue.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnIssuesUnassignedMessage(IssuesEvent.RootObject obj)
+        public static EmbedBuilder GetOnIssuesUnassignedMessage(IssuesEvent.RootObject obj)
         {
-            return string.Format("**{0} un-assigned a user to issue #{1} for '{2}'**\n\n{3}\n```\n- {4}\n\nCurrent assignees: {5}\n```",
-                obj.sender.login,
-                obj.issue.number,
-                obj.repository.full_name,
-                obj.issue.html_url,
-                obj.issue.assignee.login,
-                string.Join(", ", obj.issue.assignees.Select(o => o.login)));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} un-assigned user to issue #{obj.issue.number} for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Unassigned user";
+                x.Value = obj.assignee.login;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Users assigned to issue";
+                x.Value = obj.issue.assignees.Count > 0 ? string.Join(", ", obj.issue.assignees.Select(o => o.login)) : "None";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.issue.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnIssuesLabeledMessage(IssuesEvent.RootObject obj)
+        public static EmbedBuilder GetOnIssuesLabeledMessage(IssuesEvent.RootObject obj)
         {
-            return string.Format("**{0} added a label for issue #{1} for '{2}'**\n\n{3}\n```\n+ {4}\n\nCurrent labels: {5}\n```",
-                obj.sender.login,
-                obj.issue.number,
-                obj.repository.full_name,
-                obj.issue.html_url,
-                obj.label.name,
-                string.Join(", ", obj.issue.labels.Select(o => o.name)));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} added a label to issue #{obj.issue.number} for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Added label";
+                x.Value = obj.label.name;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Current labels for issue";
+                x.Value = obj.issue.labels.Count > 0 ? string.Join(", ", obj.issue.labels.Select(o => o.name)) : "None";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.issue.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnIssuesUnlabeledMessage(IssuesEvent.RootObject obj)
+        public static EmbedBuilder GetOnIssuesUnlabeledMessage(IssuesEvent.RootObject obj)
         {
-            return string.Format("**{0} removed a label for issue #{1} for '{2}'**\n\n{3}\n```\n- {4}\n\nCurrent labels: {5}\n```",
-                obj.sender.login,
-                obj.issue.number,
-                obj.repository.full_name,
-                obj.issue.html_url,
-                obj.label.name,
-                string.Join(", ", obj.issue.labels.Select(o => o.name)));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} removed a label from issue #{obj.issue.number} for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Removed label";
+                x.Value = obj.label.name;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Current labels for issue";
+                x.Value = obj.issue.labels.Count > 0 ? string.Join(", ", obj.issue.labels.Select(o => o.name)) : "None";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.issue.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnIssueCommentMessage(IssueCommentEvent.RootObject obj)
+        public static EmbedBuilder GetOnIssueCommentMessage(IssueCommentEvent.RootObject obj)
         {
-            return string.Format("**{0} {1} a comment on an issue #{2}**\n\n{3}\n```\n{4}\n\nTitle: {5}\nAssignees: {6}\nLabels: {7}\n```",
-                obj.comment.user.login,
-                obj.action,
-                obj.issue.number,
-                obj.comment.html_url,
-                obj.comment.body,
-                obj.issue.title,
-                string.Join(", ", obj.issue.assignees.Select(o => o.login)),
-                string.Join(", ", obj.issue.labels.Select(o => o.name)));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} {obj.action} a comment on issue #{obj.issue.number} for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = $"Comment {obj.action}";
+                x.Value = obj.comment.body;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.issue.html_url;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnLabelCreatedMessage(LabelEvent.RootObject obj)
+        public static EmbedBuilder GetOnLabelCreatedMessage(LabelEvent.RootObject obj)
         {
-            return string.Format("**{0} created a new label for '{1}'**\n```\n+ {2}\n```",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.label.name);
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} created a new label for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "New label";
+                x.Value = obj.label.name;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Label color";
+                x.Value = $"#{obj.label.color}";
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnLabelEditedMessage(LabelEvent.RootObject obj)
+        public static EmbedBuilder GetOnLabelEditedMessage(LabelEvent.RootObject obj)
         {
-            return string.Format("**{0} edited a label for '{1}'**\n```\n{2} -> {3}\n```",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.changes.name.from,
-                obj.label.name);
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} edited a label for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "New name";
+                x.Value = obj.label.name;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Original";
+                x.Value = obj.changes.name.from;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnLabelDeletedMessage(LabelEvent.RootObject obj)
+        public static EmbedBuilder GetOnLabelDeletedMessage(LabelEvent.RootObject obj)
         {
-            return string.Format("**{0} deleted a label for '{1}'**\n```\n- {2}\n```",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.label.name);
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} deleted a label for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Deleted label";
+                x.Value = obj.label.name;
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnProjectCardCreatedMessage(ProjectCardEvent.RootObject obj)
+        public static EmbedBuilder GetOnProjectCardCreatedMessage(ProjectCardEvent.RootObject obj)
         {
-            return string.Format("**{0} created a new project card for '{1}'**\n```\n{2}\n```",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.project_card.note);
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} created a new project card for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Card note";
+                x.Value = !string.IsNullOrEmpty(obj.project_card.note) ? obj.project_card.note : "Not available";
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnProjectCardEditedMessage(ProjectCardEvent.RootObject obj)
+        public static EmbedBuilder GetOnProjectCardEditedMessage(ProjectCardEvent.RootObject obj)
         {
-            return string.Format("**{0} edited a project card for '{1}'**\n```\n{2}\n----\nOriginal: {3}\nCreated at: {4}\n```",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.project_card.note,
-                obj.changes.note.from,
-                obj.project_card.created_at.ToString("MM/dd/yyyy HH:mm:ss", CultureInfo.InvariantCulture));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} edited a project card for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "New note";
+                x.Value = !string.IsNullOrEmpty(obj.project_card.note) ? obj.project_card.note : "Not available";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Original";
+                x.Value = !string.IsNullOrEmpty(obj.changes.note.from) ? obj.changes.note.from : "Not available";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Creation date";
+                x.Value = obj.project_card.created_at.ToString("MM/dd/yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnProjectCardMovedMessage(ProjectCardEvent.RootObject obj)
+        public static EmbedBuilder GetOnProjectCardMovedMessage(ProjectCardEvent.RootObject obj)
         {
-            return string.Format("**{0} moved a project card for '{1}'**\n```\n{2}\n----\nCreated at: {3}\n```",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.project_card.note,
-                obj.project_card.created_at.ToString("MM/dd/yyyy HH:mm:ss", CultureInfo.InvariantCulture));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} moved a project card for {obj.repository.full_name}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Card note";
+                x.Value = !string.IsNullOrEmpty(obj.project_card.note) ? obj.project_card.note : "Not available";
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Creation date";
+                x.Value = obj.project_card.created_at.ToString("MM/dd/yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnProjectCardConvertedMessage(ProjectCardEvent.RootObject obj)
+        public static EmbedBuilder GetOnProjectCardConvertedMessage(ProjectCardEvent.RootObject obj)
         {
-            return string.Format("**{0} converted a project card for '{1}' into an issue**\n{2}",
-                obj.sender.login,
-                obj.repository.full_name,
-                obj.project_card.content_url.Replace("api.", "").Replace("repos/", ""));
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} converted a project card for {obj.repository.full_name} into a new issue"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Url";
+                x.Value = obj.project_card.content_url.Replace("api.", "").Replace("repos/", "");
+                x.IsInline = false;
+            });
+
+            return builder;
         }
 
-        public static string GetOnProjectCardDeletedMessage(ProjectCardEvent.RootObject obj)
+        public static EmbedBuilder GetOnProjectCardDeletedMessage(ProjectCardEvent.RootObject obj)
         {
-            return string.Format("**{0} deleted a project card for '{1}'**",
-                obj.sender.login,
-                obj.repository.full_name);
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"{obj.sender.login} deleted a project card from {obj.repository.full_name}"
+            };
+
+            return builder;
         }
     }
 }

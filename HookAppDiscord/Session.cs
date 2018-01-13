@@ -43,6 +43,7 @@ namespace HookAppDiscord
         private ISocketMessageChannel _githubChannel;
         private GitHubClient _githubClient;
 
+        private Timer _statusTimer;
         private ISocketMessageChannel _statusChannel;
         private int _statusResponseErrors;
 
@@ -135,7 +136,7 @@ namespace HookAppDiscord
             _githubChannel = (ISocketMessageChannel)_client.GetChannel(_settings.GithubChannel);
             _statusChannel = (ISocketMessageChannel)_client.GetChannel(_settings.StatusChannel);
 
-            Timer t = new Timer(ServerStatusTimer, null, 0, (int)TimeSpan.FromMinutes(_settings.StatusPingInterval).TotalMilliseconds);
+            _statusTimer = new Timer(ServerStatusTimer, null, 0, (int)TimeSpan.FromMinutes(_settings.StatusPingInterval).TotalMilliseconds);
 
             Console.Clear();
             Console.WriteLine(ascii);
@@ -197,14 +198,14 @@ namespace HookAppDiscord
                 _statusResponseErrors = 0;
                 if (response.StatusCode != HttpStatusCode.OK)
                 {
-                    _statusChannel.SendMessageAsync(DiscordMessageFormatter.GetRestResponseMessage(response, _settings.ServerEndpointStatus, watch.ElapsedMilliseconds));
+                    _statusChannel.SendMessageAsync("", false, DiscordMessageFormatter.GetRestResponseMessage(response, _settings.ServerEndpointStatus, watch.ElapsedMilliseconds).Build());
                 }
             }
             else
             {
                 if (++_statusResponseErrors >= 3)
                 {
-                    _statusChannel.SendMessageAsync(DiscordMessageFormatter.GetRestResponseFailedMessage(exceptionMessage, _settings.ServerEndpointStatus));
+                    _statusChannel.SendMessageAsync("", false, DiscordMessageFormatter.GetRestResponseFailedMessage(exceptionMessage, _settings.ServerEndpointStatus).Build());
                     _statusResponseErrors = 0;
                 }
             }
@@ -274,15 +275,9 @@ namespace HookAppDiscord
             }
         }
 
-        private void SendEventMessage(string message)
+        private void SendEventMessage(EmbedBuilder build)
         {
-            var builder = new EmbedBuilder()
-            {
-                Color = Const.DISCORD_EMBED_COLOR,
-                Description = message
-            };
-            
-            _githubChannel.SendMessageAsync("", false, builder.Build());
+            _githubChannel.SendMessageAsync("", false, build.Build());
         }
 
         private void OnPush(PushEvent.RootObject obj)

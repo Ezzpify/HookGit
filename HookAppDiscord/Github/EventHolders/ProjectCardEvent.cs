@@ -45,7 +45,7 @@ namespace HookAppDiscord.Github.EventHolders
             public string column_url { get; set; }
             public int column_id { get; set; }
             public int id { get; set; }
-            public object note { get; set; }
+            public string note { get; set; }
             public Creator creator { get; set; }
             public DateTime created_at { get; set; }
             public DateTime updated_at { get; set; }

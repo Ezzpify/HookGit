@@ -43,6 +43,14 @@ namespace HookAppDiscord.Discord.Modules
             if (newIssue != null)
             {
                 builder.Description = $"Issue created for '{repo}' with issue number #{newIssue.Number}";
+
+                builder.AddField(x =>
+                {
+                    x.Name = "Url";
+                    x.Value = newIssue.HtmlUrl;
+                    x.IsInline = false;
+                });
+
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
             }
         }
@@ -64,6 +72,14 @@ namespace HookAppDiscord.Discord.Modules
             if (newIssue != null)
             {
                 builder.Description = $"Issue #{newIssue.Number} has been closed.";
+
+                builder.AddField(x =>
+                {
+                    x.Name = "Url";
+                    x.Value = newIssue.HtmlUrl;
+                    x.IsInline = false;
+                });
+
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
             }
         }
@@ -102,6 +118,13 @@ namespace HookAppDiscord.Discord.Modules
                         x.IsInline = false;
                     });
                 }
+
+                builder.AddField(x =>
+                {
+                    x.Name = "Url";
+                    x.Value = newIssue.HtmlUrl;
+                    x.IsInline = false;
+                });
 
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
             }
@@ -149,13 +172,20 @@ namespace HookAppDiscord.Discord.Modules
                     });
                 }
 
+                builder.AddField(x =>
+                {
+                    x.Name = "Url";
+                    x.Value = newIssue.HtmlUrl;
+                    x.IsInline = false;
+                });
+
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
             }
         }
 
         [Command("listissues")]
         [Summary("Lists all issues for repo")]
-        public async Task LabelIssueAsync([Summary("Name of repository")] string repo)
+        public async Task ListIssueAsync([Summary("Name of repository")] string repo)
         {
             var owner = await _client.User.Current();
             var issueList = await _client.Issue.GetAllForRepository(owner.Login, repo);
@@ -168,10 +198,13 @@ namespace HookAppDiscord.Discord.Modules
 
             foreach (var issue in issueList)
             {
+                string assignString = string.Join("\n• ", issue.Assignees.Select(o => o.Login));
+                assignString = !string.IsNullOrEmpty(assignString) ? $"Assigned:\n• {assignString}" : "Assigned:\nNone";
+
                 builder.AddField(x =>
                 {
                     x.Name = $"#{issue.Number} - {issue.Title}";
-                    x.Value = Utils.Truncate(issue.Body, 50);
+                    x.Value = $"{issue.HtmlUrl}\n{Utils.Truncate(issue.Body, 100)}\n{assignString}";
                     x.IsInline = false;
                 });
             }
