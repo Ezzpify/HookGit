@@ -6,7 +6,9 @@
 
 # General information
 
-HookGit is an inhouse utility that was developed for Tapp Solutions. It provides:
+HookGit is an inhouse utility that was developed for Tapp Solutions. The repository for this application has been made public for others to get ideas how to implement similar features in their apps.
+
+HookGit provides the following:
 
 - GitHub webhook support
    - Notifying when events occure in a repository such as, but not limited to: Pushed, Commit comments, Issues, Project cards, labels
