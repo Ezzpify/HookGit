@@ -28,6 +28,21 @@ HookGit provides the following:
  
 * Discord commands for interactive data lookup and edits
 
+   - **GithubModule**
+      - !createissue
+      - !closeissue
+      - !assignissue
+      - !labelissue
+      - !listissues
+   - **HelpModule**
+      - !help
+      - !help
+   - **ServiceModule**
+      - !stats
+   - **BasicModule**
+      - !roll
+      - !8ball
+
 ---
 
 Example GitHub webhook relay to Discord
