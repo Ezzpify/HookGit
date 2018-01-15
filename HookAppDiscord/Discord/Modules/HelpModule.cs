@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using log4net;
 using Discord;
 using Discord.Commands;
 
@@ -11,16 +12,20 @@ namespace HookAppDiscord.Discord.Modules
     public class HelpModule : ModuleBase<SocketCommandContext>
     {
         private readonly CommandService _service;
+        private readonly ILog _log;
 
-        public HelpModule(CommandService service)
+        public HelpModule(CommandService service, ILog log)
         {
             _service = service;
+            _log = log;
         }
 
         [Command("help")]
         [Summary("Lists all available commands")]
         public async Task HelpAsync()
         {
+            _log.Info($"{Context.User.Username} executed !help command");
+
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
@@ -48,6 +53,7 @@ namespace HookAppDiscord.Discord.Modules
                 }
             }
 
+            _log.Info("Replying with a list of available commands");
             await ReplyAsync("", false, builder.Build());
         }
 
@@ -55,6 +61,8 @@ namespace HookAppDiscord.Discord.Modules
         [Summary("Lists information about a specific command")]
         public async Task HelpAsync(string command)
         {
+            _log.Info($"{Context.User.Username} executed !help command with parameters {command}");
+
             var result = _service.Search(Context, command);
 
             if (!result.IsSuccess)
@@ -82,6 +90,7 @@ namespace HookAppDiscord.Discord.Modules
                 });
             }
 
+            _log.Info("Replying with information about matching command(s)");
             await ReplyAsync("", false, builder.Build());
         }
     }

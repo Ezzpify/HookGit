@@ -16,6 +16,7 @@ namespace HookAppDiscord
 
         public async Task MainAsync()
         {
+            log4net.Config.XmlConfigurator.Configure();
             Console.Title = "HookGit | Discord utility";
             Console.WriteLine("Loading...");
             var settings = Settings.FromJson(Const.SETTINGS_FILE_PATH);

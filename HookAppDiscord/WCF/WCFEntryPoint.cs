@@ -7,6 +7,7 @@ using System.IO;
 using System.ServiceModel;
 using System.ServiceModel.Web;
 using System.ServiceModel.Channels;
+using log4net;
 using Newtonsoft.Json;
 
 namespace HookAppDiscord.WCF
@@ -36,15 +37,27 @@ namespace HookAppDiscord.WCF
 
         public string Payload(Stream stream)
         {
-            var properties = (HttpRequestMessageProperty)OperationContext.Current.IncomingMessageProperties.Values.ToArray()[3];
-            string eventName = properties.Headers.Get("X-GitHub-Event");
-            
-            StreamReader reader = new StreamReader(stream);
-            string jsonBody = reader.ReadToEnd();
+            try
+            {
+                var properties = (HttpRequestMessageProperty)OperationContext.Current.IncomingMessageProperties.Values.ToArray()[3];
+                string eventName = properties.Headers.Get("X-GitHub-Event");
 
-            WCFServer.DeliveryCallback(eventName, jsonBody);
+                if (!string.IsNullOrWhiteSpace(eventName))
+                {
+                    StreamReader reader = new StreamReader(stream);
+                    string jsonBody = reader.ReadToEnd();
 
-            return JsonConvert.SerializeObject(new PayloadResponse(true, eventName), Formatting.Indented);
+                    WCFServer.DeliveryCallback(eventName, jsonBody);
+
+                    return JsonConvert.SerializeObject(new PayloadResponse(true, eventName), Formatting.Indented);
+                }
+            }
+            catch
+            {
+                return JsonConvert.SerializeObject(new PayloadResponse(false, "exception"), Formatting.Indented);
+            }
+
+            return JsonConvert.SerializeObject(new PayloadResponse(false, "unknown"), Formatting.Indented);
         }
     }
 }

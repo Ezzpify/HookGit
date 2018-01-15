@@ -8,6 +8,7 @@ using Discord;
 using Discord.WebSocket;
 using Discord.Commands;
 using HookAppDiscord.HookApp;
+using log4net;
 using Octokit;
 using Octokit.Reactive;
 using HookAppDiscord.DataHolders;
@@ -18,17 +19,21 @@ namespace HookAppDiscord.Discord.Modules
     {
         private readonly GitHubClient _client;
         private readonly Settings _settings;
+        private readonly ILog _log;
 
-        public GithubModule(GitHubClient client, Settings settings)
+        public GithubModule(GitHubClient client, Settings settings, ILog log)
         {
             _client = client;
             _settings = settings;
+            _log = log;
         }
 
         [Command("createissue")]
         [Summary("Create a new GitHub issue")]
         public async Task CreateIssueAsync([Summary("Name of repository")] string repo, [Summary("Title of the issue")] string title, [Summary("Body of the issue")] string body)
         {
+            _log.Info($"{Context.User.Username} executed !createissue command with parameters {repo} | {title} | {body}");
+
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
@@ -43,7 +48,6 @@ namespace HookAppDiscord.Discord.Modules
             if (newIssue != null)
             {
                 builder.Description = $"Issue created for '{repo}' with issue number #{newIssue.Number}";
-
                 builder.AddField(x =>
                 {
                     x.Name = "Url";
@@ -51,7 +55,12 @@ namespace HookAppDiscord.Discord.Modules
                     x.IsInline = false;
                 });
 
+                _log.Info($"Issue #{newIssue.Number} has been created for repo '{repo}'");
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
+            }
+            else
+            {
+                _log.Error($"Unable to create issue. Issue returned null.");
             }
         }
 
@@ -59,6 +68,8 @@ namespace HookAppDiscord.Discord.Modules
         [Summary("Closes a GitHub issue")]
         public async Task CloseIssueAsync([Summary("Name of repository")] string repo, [Summary("Issue number")] int number)
         {
+            _log.Info($"{Context.User.Username} executed !closeissue command with parameters {repo} | {number}");
+
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
@@ -72,7 +83,6 @@ namespace HookAppDiscord.Discord.Modules
             if (newIssue != null)
             {
                 builder.Description = $"Issue #{newIssue.Number} has been closed.";
-
                 builder.AddField(x =>
                 {
                     x.Name = "Url";
@@ -80,7 +90,12 @@ namespace HookAppDiscord.Discord.Modules
                     x.IsInline = false;
                 });
 
+                _log.Info($"Issue #{number} has been closed.");
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
+            }
+            else
+            {
+                _log.Error($"Unable to close issue. Issue returned null.");
             }
         }
 
@@ -88,18 +103,23 @@ namespace HookAppDiscord.Discord.Modules
         [Summary("Assigns user to issue")]
         public async Task AssignIssueAsync([Summary("Name of repository")] string repo, [Summary("Issue number")] int number, SocketUser user = null)
         {
+            _log.Info($"{Context.User.Username} executed !assignissue command with parameters {repo} | {number}");
+
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
             };
 
             string githubUser = string.Empty;
-            if (user == null || (githubUser = _settings.Users.FirstOrDefault(o => o.DiscordId == user.Id).GithubUsername) == null)
+            if (user == null || string.IsNullOrEmpty(githubUser = _settings.Users.FirstOrDefault(o => o.DiscordId == user.Id).GithubUsername))
             {
+                _log.Error($"User provided does not exist in my list of users.");
                 builder.Description = "I don't seem to have that user in my list.";
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
                 return;
             }
+
+            _log.Info($"Targeted GitHub user is: {githubUser}");
 
             var update = new IssueUpdate();
             update.AddAssignee(githubUser);
@@ -126,7 +146,12 @@ namespace HookAppDiscord.Discord.Modules
                     x.IsInline = false;
                 });
 
+                _log.Info($"User {githubUser} has been assigned to issue #{number}");
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
+            }
+            else
+            {
+                _log.Error($"Unable to assign user to issue. Issue returned null.");
             }
         }
 
@@ -134,6 +159,8 @@ namespace HookAppDiscord.Discord.Modules
         [Summary("Assigns label to issue")]
         public async Task LabelIssueAsync([Summary("Name of repository")] string repo, [Summary("Issue number")] int number, [Summary("Name of label")] string label)
         {
+            _log.Info($"{Context.User.Username} executed !labelissue command with parameters {repo} | {number} | {label}");
+
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
@@ -141,6 +168,7 @@ namespace HookAppDiscord.Discord.Modules
 
             if (!_settings.Labels.Contains(label))
             {
+                _log.Error($"Label {label} does not exist. Replying with list of available labels.");
                 builder.Description = "Label does not exist. List of available labels:";
                 foreach (var labelName in _settings.Labels)
                 {
@@ -179,7 +207,12 @@ namespace HookAppDiscord.Discord.Modules
                     x.IsInline = false;
                 });
 
+                _log.Info($"Assigned label {label} to issue #{number}");
                 await Context.Channel.SendMessageAsync("", false, builder.Build());
+            }
+            else
+            {
+                _log.Error($"Unable to label issue. Issue returned null.");
             }
         }
 
@@ -187,6 +220,8 @@ namespace HookAppDiscord.Discord.Modules
         [Summary("Lists all issues for repo")]
         public async Task ListIssueAsync([Summary("Name of repository")] string repo)
         {
+            _log.Info($"{Context.User.Username} executed !listissues command with parameter {repo}");
+
             var owner = await _client.User.Current();
             var issueList = await _client.Issue.GetAllForRepository(owner.Login, repo);
 
@@ -209,6 +244,7 @@ namespace HookAppDiscord.Discord.Modules
                 });
             }
 
+            _log.Info($"Replying with {issueList.Count} issues");
             await Context.Channel.SendMessageAsync("", false, builder.Build());
         }
     }

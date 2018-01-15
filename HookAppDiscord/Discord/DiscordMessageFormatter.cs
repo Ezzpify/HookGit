@@ -8,11 +8,37 @@ using Discord;
 using System.Globalization;
 using HookAppDiscord.Github.EventHolders;
 using HookAppDiscord.HookApp.DataHolders;
+using HookAppDiscord.DataHolders;
 
 namespace HookAppDiscord.Discord
 {
     class DiscordMessageFormatter
     {
+        public static EmbedBuilder GetTranslationMessage(Translation translation)
+        {
+            var builder = new EmbedBuilder()
+            {
+                Color = Const.DISCORD_EMBED_COLOR,
+                Description = $"Translated {translation.Author}'s message in #{translation.Channel}"
+            };
+
+            builder.AddField(x =>
+            {
+                x.Name = "Translated text";
+                x.Value = translation.TranslatedText;
+                x.IsInline = false;
+            });
+
+            builder.AddField(x =>
+            {
+                x.Name = "Original text";
+                x.Value = translation.OriginalText;
+                x.IsInline = false;
+            });
+
+            return builder;
+        }
+
         public static EmbedBuilder GetServiceHookappMessage(ServerStats stats)
         {
             var builder = new EmbedBuilder()

@@ -13,6 +13,7 @@ using Discord;
 using Discord.WebSocket;
 using Discord.Commands;
 using RestSharp;
+using log4net;
 using Octokit;
 using Octokit.Internal;
 using Octokit.Reactive;
@@ -31,7 +32,9 @@ namespace HookAppDiscord
 {
     class Session
     {
+        private readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         private Settings _settings;
+
         private DiscordSocketClient _client;
         private CommandService _commands;
         private IServiceProvider _services;
@@ -52,12 +55,12 @@ namespace HookAppDiscord
         public Session(Settings settings)
         {
             _settings = settings;
-
+            
             Console.WriteLine("Setting up endpoint urls...");
             ApiEndpoint.ServerStatsUrl = _settings.ServerEndpointStats;
 
             Console.WriteLine("Setting up translation...");
-            _translate = new Translate(settings.AzureToken, settings.TranslateTo);
+            _translate = new Translate(_log, settings.AzureToken, settings.TranslateTo);
 
             Console.WriteLine("Setting up github webhook...");
             GithubWebhookDelivery callback = GithubDelivery;
@@ -88,6 +91,7 @@ namespace HookAppDiscord
                 .AddSingleton(_commands)
                 .AddSingleton(_githubClient)
                 .AddSingleton(_settings)
+                .AddSingleton(_log)
                 .BuildServiceProvider();
             
             _commands.AddModulesAsync(Assembly.GetEntryAssembly());
@@ -105,9 +109,13 @@ namespace HookAppDiscord
             
             var context = new SocketCommandContext(_client, message);
 
+            _log.Info($"Executing command: {message.Content}");
             var result = await _commands.ExecuteAsync(context, argPos, _services);
             if (!result.IsSuccess)
+            {
+                _log.Error($"Error executing command. Reason: {result.ErrorReason}");
                 await context.Channel.SendMessageAsync(result.ErrorReason);
+            }
         }
 
         public async Task Connect()
@@ -147,20 +155,52 @@ namespace HookAppDiscord
         {
             if (!arg.Author.IsBot)
             {
-                string message = _translate.GetTranslatedMessage(arg);
-                if (message.Length > 0)
-                    await _translationChannel.SendMessageAsync(message);
+                string friendlyMessage = GetFriendlyDiscordMessage(arg);
+                _log.Info($"[Discord message] {arg.Author.Username}: {arg.Content}");
+
+                var message = _translate.GetTranslatedMessage(arg, friendlyMessage);
+                if (message != null)
+                {
+                    await _translationChannel.SendMessageAsync("", false, message);
+                }
 
                 if (arg.MentionedUsers.Select(o => o.Id).Contains(_client.CurrentUser.Id))
                 {
-                    CleverbotResponse response = await _cleverbot.GetResponseAsync(message);
+                    _log.Info($"Getting cleverbot response for user {arg.Author.Username}");
+
+                    CleverbotResponse response = await _cleverbot.GetResponseAsync(friendlyMessage);
                     await arg.Channel.SendMessageAsync(response.Response);
+                    _log.Info($"Cleverbot responds: {response.Response}");
                 }
                 else
                 {
                     await HandleCommandAsync(arg);
                 }
             }
+        }
+
+        private string GetFriendlyDiscordMessage(SocketMessage arg)
+        {
+            var userDic = new Dictionary<string, string>();
+            foreach (var user in arg.MentionedUsers)
+            {
+                string key = user.Id.ToString();
+                if (!userDic.ContainsKey(key))
+                    userDic.Add(key, user.Username);
+            }
+
+            /*Replace each Discord user id with their username*/
+            string converted = Regex.Replace(arg.Content, @"<@!?(\d+)>", 
+                m => userDic.ContainsKey(m.Groups[1].Value) 
+                ? userDic[m.Groups[1].Value] : m.Value);
+
+            /*Remove the first tagged username if it is the bot's*/
+            converted = Regex.Replace(converted, $@"^{_client.CurrentUser.Username}\s*", String.Empty, RegexOptions.Multiline);
+
+            /*Replace multiple spaces with single space*/
+            converted = Regex.Replace(converted, @"\s+", " ");
+
+            return converted;
         }
 
         private async Task<CleverbotResponse> GetCleverbotResponse(string message)
@@ -181,6 +221,7 @@ namespace HookAppDiscord
 
             try
             {
+                _log.Info($"Pinging {_settings.ServerEndpointStatus} for connection status...");
                 var client = new RestClient(new Uri(_settings.ServerEndpointStatus));
                 var request = new RestRequest(Method.GET);
                 response = client.Execute(request);
@@ -188,23 +229,33 @@ namespace HookAppDiscord
             catch (Exception ex)
             {
                 exceptionMessage = ex.Message;
+                _log.Error($"Failed connecting to url. Error: {ex.Message}");
             }
 
             watch.Stop();
-            Console.WriteLine($"ServerEndpointStatus ping took {watch.ElapsedMilliseconds} ms.");
+            _log.Info($"Ping took {watch.ElapsedMilliseconds} ms to complete.");
 
             if (response != null)
             {
                 _statusResponseErrors = 0;
                 if (response.StatusCode != HttpStatusCode.OK)
                 {
+                    _log.Info($"Server ping did not return OK, but instead {response.StatusDescription}");
                     _statusChannel.SendMessageAsync("", false, DiscordMessageFormatter.GetRestResponseMessage(response, _settings.ServerEndpointStatus, watch.ElapsedMilliseconds).Build());
+                }
+                else
+                {
+                    _log.Info($"Server ping was successful!");
                 }
             }
             else
             {
-                if (++_statusResponseErrors >= 3)
+                _statusResponseErrors++;
+                _log.Error($"Server response was null. If this happens {3 - _statusResponseErrors} more time(s) I will notify the Discord channel.");
+
+                if (_statusResponseErrors >= 3)
                 {
+                    _log.Error($"Server didn't respond 3 times in a row. I will now notify the Discord channel.");
                     _statusChannel.SendMessageAsync("", false, DiscordMessageFormatter.GetRestResponseFailedMessage(exceptionMessage, _settings.ServerEndpointStatus).Build());
                     _statusResponseErrors = 0;
                 }
@@ -219,64 +270,61 @@ namespace HookAppDiscord
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Unable to parse Github delivery of type {typeof(T)}\nException: {ex.Message}");
+                _log.Error($"Unable to parse Github delivery of type {typeof(T)}\nException: {ex.Message}");
                 return default(T);
             }
         }
 
         private void GithubDelivery(string eventName, string jsonBody)
         {
+            _log.Info($"GitHub webhook delivery for '{eventName}' received.");
             switch (eventName)
             {
                 case "push":
-                    Console.WriteLine("Github delivery event 'push' received.");
                     OnPush(GetDelivery<PushEvent.RootObject>(jsonBody));
                     break;
 
                 case "commit_comment":
-                    Console.WriteLine("Github delivery event 'commit_comment' received.");
                     OnCommitComment(GetDelivery<CommitCommentEvent.RootObject>(jsonBody));
                     break;
 
                 case "issues":
-                    Console.WriteLine("Github delivery event 'issues' received.");
                     OnIssues(GetDelivery<IssuesEvent.RootObject>(jsonBody));
                     break;
 
                 case "project_card":
-                    Console.WriteLine("Github delivery event 'project_card' received.");
                     OnProjectCard(GetDelivery<ProjectCardEvent.RootObject>(jsonBody));
                     break;
 
                 case "create":
-                    Console.WriteLine("Github delivery event 'create' received.");
                     OnCreate(GetDelivery<CreateEvent.RootObject>(jsonBody));
                     break;
 
                 case "deployment":
-                    Console.WriteLine("Github delivery event 'deployment' received.");
                     OnDeployment(GetDelivery<DeploymentEvent.RootObject>(jsonBody));
                     break;
 
                 case "issue_comment":
-                    Console.WriteLine("Github delivery event 'issue_comment' received.");
                     OnIssueComment(GetDelivery<IssueCommentEvent.RootObject>(jsonBody));
                     break;
 
                 case "label":
-                    Console.WriteLine("Github delivery event 'label' received.");
                     OnLabel(GetDelivery<LabelEvent.RootObject>(jsonBody));
                     break;
 
                 case "milestone":
-                    Console.WriteLine("Github delivery event 'milestone' received.");
                     OnMilestone(GetDelivery<MilestoneEvent.RootObject>(jsonBody));
+                    break;
+
+                default:
+                    _log.Error($"I don't have an implementation for the event '{eventName}'");
                     break;
             }
         }
 
         private void SendEventMessage(EmbedBuilder build)
         {
+            _log.Info($"Sending a message to Discord channel with description: {build.Description}");
             _githubChannel.SendMessageAsync("", false, build.Build());
         }
 
