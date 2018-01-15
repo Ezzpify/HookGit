@@ -100,15 +100,15 @@ namespace HookAppDiscord.Microsoft
             return response.Content;
         }
 
-        private string GetTranslation(string textToTranslate, string language, string to,  string accessToken)
+        private string GetTranslation(string textToTranslate, string languageTo, string languageFrom,  string accessToken)
         {
             var client = new RestClient("http://api.microsofttranslator.com/v2/Http.svc/Translate");
 
             var request = new RestRequest(Method.GET);
             request.AddParameter("Authorization", "Bearer " + accessToken, ParameterType.HttpHeader);
             request.AddParameter("text", System.Net.WebUtility.UrlEncode(textToTranslate));
-            request.AddParameter("to", language);
-            request.AddParameter("from", language);
+            request.AddParameter("to", languageTo);
+            request.AddParameter("from", languageFrom);
             request.AddParameter("contentType", "text/plain");
 
             var response = client.Execute(request);

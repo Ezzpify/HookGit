@@ -39,60 +39,68 @@ namespace HookAppDiscord.Discord
             return builder;
         }
 
-        public static EmbedBuilder GetServiceHookappMessage(ServerStats stats)
+        public static EmbedBuilder GetServiceHookappMessage(ServerStats stats, ServerStats oldStats)
         {
+            if (oldStats == null)
+            {
+                oldStats = new ServerStats();
+                oldStats.date = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+            }
+
+            var ts = stats.date.Subtract(oldStats.date);
+
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
-                Description = "Here are some stats for HookApp"
+                Description = $"Here are some stats for HookApp with data difference from {ts.Days} days, {ts.Hours} hours, {ts.Minutes} minutes and {ts.Seconds} seconds ago."
             };
 
             builder.AddField(x =>
             {
                 x.Name = "Number of users";
-                x.Value = stats.numOfUsers;
+                x.Value = $"{oldStats.numOfUsers} -> {stats.numOfUsers}";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Facebook users";
-                x.Value = stats.facebookUsers;
+                x.Value = $"{oldStats.facebookUsers} -> {stats.facebookUsers}";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Google users";
-                x.Value = stats.googleUsers;
+                x.Value = $"{oldStats.googleUsers} -> {stats.googleUsers}";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Number of rates";
-                x.Value = stats.numOfRates;
+                x.Value = $"{oldStats.numOfRates} -> {stats.numOfRates}";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Number of matches";
-                x.Value = stats.numOfMatches;
+                x.Value = $"{oldStats.numOfMatches} -> {stats.numOfMatches}";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Deleted accounts";
-                x.Value = stats.deletedUsers;
+                x.Value = $"{oldStats.deletedUsers} -> {stats.deletedUsers}";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Active users in last 3 days";
-                x.Value = stats.lastActiveUsers;
+                x.Value = $"{oldStats.lastActiveUsers} -> {stats.lastActiveUsers}";
                 x.IsInline = false;
             });
 

@@ -30,7 +30,10 @@ namespace HookAppDiscord.HookApp
                 {
                     try
                     {
-                        return JsonConvert.DeserializeObject<ServerStats>(Utils.FixJsonString(response.Content));
+                        var stats = JsonConvert.DeserializeObject<ServerStats>(Utils.FixJsonString(response.Content));
+                        stats.date = DateTime.Now;
+
+                        return stats;
                     }
                     catch (JsonException ex)
                     {
