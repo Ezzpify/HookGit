@@ -30,7 +30,7 @@ namespace HookAppDiscord.Discord.Modules
 
         [Command("createissue")]
         [Summary("Create a new GitHub issue")]
-        public async Task CreateIssueAsync([Summary("Name of repository")] string repo, [Summary("Title of the issue")] string title, [Summary("Body of the issue")] string body)
+        public async Task CreateIssueAsync([Summary("Owner of repository")] string owner, [Summary("Name of repository")] string repo, [Summary("Title of the issue")] string title, [Summary("Body of the issue")] string body)
         {
             _log.Info($"{Context.User.Username} executed !createissue command with parameters {repo} | {title} | {body}");
 
@@ -41,9 +41,8 @@ namespace HookAppDiscord.Discord.Modules
 
             var issue = new NewIssue(title);
             issue.Body = body;
-
-            var owner = await _client.User.Current();
-            var newIssue = await _client.Issue.Create(owner.Login, repo, issue);
+            
+            var newIssue = await _client.Issue.Create(owner, repo, issue);
 
             if (newIssue != null)
             {
@@ -66,7 +65,7 @@ namespace HookAppDiscord.Discord.Modules
 
         [Command("closeissue")]
         [Summary("Closes a GitHub issue")]
-        public async Task CloseIssueAsync([Summary("Name of repository")] string repo, [Summary("Issue number")] int number)
+        public async Task CloseIssueAsync([Summary("Owner of repository")] string owner, [Summary("Name of repository")] string repo, [Summary("Issue number")] int number)
         {
             _log.Info($"{Context.User.Username} executed !closeissue command with parameters {repo} | {number}");
 
@@ -78,8 +77,7 @@ namespace HookAppDiscord.Discord.Modules
             var update = new IssueUpdate();
             update.State = ItemState.Closed;
 
-            var owner = await _client.User.Current();
-            var newIssue = await _client.Issue.Update(owner.Login, repo, number, update);
+            var newIssue = await _client.Issue.Update(owner, repo, number, update);
             if (newIssue != null)
             {
                 builder.Description = $"Issue #{newIssue.Number} has been closed.";
@@ -101,7 +99,7 @@ namespace HookAppDiscord.Discord.Modules
 
         [Command("assignissue")]
         [Summary("Assigns user to issue")]
-        public async Task AssignIssueAsync([Summary("Name of repository")] string repo, [Summary("Issue number")] int number, SocketUser user = null)
+        public async Task AssignIssueAsync([Summary("Owner of repository")] string owner, [Summary("Name of repository")] string repo, [Summary("Issue number")] int number, SocketUser user = null)
         {
             _log.Info($"{Context.User.Username} executed !assignissue command with parameters {repo} | {number}");
 
@@ -123,9 +121,8 @@ namespace HookAppDiscord.Discord.Modules
 
             var update = new IssueUpdate();
             update.AddAssignee(githubUser);
-
-            var owner = await _client.User.Current();
-            var newIssue = await _client.Issue.Update(owner.Login, repo, number, update);
+            
+            var newIssue = await _client.Issue.Update(owner, repo, number, update);
             if (newIssue != null)
             {
                 builder.Description = $"{githubUser} has been assigned to issue #{newIssue.Number}\nCurrent assigneed:";
@@ -157,7 +154,7 @@ namespace HookAppDiscord.Discord.Modules
 
         [Command("labelissue")]
         [Summary("Assigns label to issue")]
-        public async Task LabelIssueAsync([Summary("Name of repository")] string repo, [Summary("Issue number")] int number, [Summary("Name of label")] string label)
+        public async Task LabelIssueAsync([Summary("Owner of repository")] string owner, [Summary("Name of repository")] string repo, [Summary("Issue number")] int number, [Summary("Name of label")] string label)
         {
             _log.Info($"{Context.User.Username} executed !labelissue command with parameters {repo} | {number} | {label}");
 
@@ -185,9 +182,8 @@ namespace HookAppDiscord.Discord.Modules
 
             var update = new IssueUpdate();
             update.AddLabel(label);
-
-            var owner = await _client.User.Current();
-            var newIssue = await _client.Issue.Update(owner.Login, repo, number, update);
+            
+            var newIssue = await _client.Issue.Update(owner, repo, number, update);
             if (newIssue != null)
             {
                 builder.Description = $"Label {label} has been assigned to issue #{newIssue.Number}\nCurrent labels:";
@@ -218,12 +214,11 @@ namespace HookAppDiscord.Discord.Modules
 
         [Command("listissues")]
         [Summary("Lists all issues for repo")]
-        public async Task ListIssueAsync([Summary("Name of repository")] string repo)
+        public async Task ListIssueAsync([Summary("Owner of repository")] string owner, [Summary("Name of repository")] string repo)
         {
             _log.Info($"{Context.User.Username} executed !listissues command with parameter {repo}");
-
-            var owner = await _client.User.Current();
-            var issueList = await _client.Issue.GetAllForRepository(owner.Login, repo);
+            
+            var issueList = await _client.Issue.GetAllForRepository(owner, repo);
 
             var builder = new EmbedBuilder()
             {
