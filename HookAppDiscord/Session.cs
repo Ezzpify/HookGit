@@ -393,16 +393,29 @@ namespace HookAppDiscord
             SendEventMessage(DiscordMessageFormatter.GetOnIssueCommentMessage(obj));
         }
 
-        private void OnProjectCard(ProjectCardEvent.RootObject obj)
+        private async void OnProjectCard(ProjectCardEvent.RootObject obj)
         {
             //https://developer.github.com/v3/activity/events/types/#projectcardevent
             if (obj == null)
                 return;
+            
+            ProjectColumn column = await _githubClient.Repository.Project.Column.Get(obj.project_card.column_id);
+            Issue issue = null;
+
+            string contentUrl = obj.project_card.content_url;
+            if (!string.IsNullOrEmpty(contentUrl))
+            {
+                int pos = contentUrl.LastIndexOf("/") + 1;
+                string strId = contentUrl.Substring(pos, contentUrl.Length - pos);
+                
+                if (int.TryParse(strId, out int id))
+                    issue = await _githubClient.Issue.Get(obj.repository.id, id);
+            }
 
             switch (obj.action)
             {
                 case "created":
-                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardCreatedMessage(obj));
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardCreatedMessage(obj, column));
                     break;
 
                 case "edited":
@@ -414,11 +427,11 @@ namespace HookAppDiscord
                     break;
 
                 case "moved":
-                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardMovedMessage(obj));
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardMovedMessage(obj, column, issue));
                     break;
 
                 case "deleted":
-                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardDeletedMessage(obj));
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardDeletedMessage(obj, issue));
                     break;
             }
         }

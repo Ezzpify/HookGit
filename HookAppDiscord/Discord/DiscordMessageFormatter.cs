@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using RestSharp;
 using Discord;
 using System.Globalization;
+using Octokit;
 using HookAppDiscord.Github.EventHolders;
 using HookAppDiscord.HookApp.DataHolders;
 using HookAppDiscord.DataHolders;
@@ -541,12 +542,12 @@ namespace HookAppDiscord.Discord
             return builder;
         }
 
-        public static EmbedBuilder GetOnProjectCardCreatedMessage(ProjectCardEvent.RootObject obj)
+        public static EmbedBuilder GetOnProjectCardCreatedMessage(ProjectCardEvent.RootObject obj, ProjectColumn column)
         {
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
-                Description = $"{obj.sender.login} created a new project card for {obj.repository.full_name}"
+                Description = $"{obj.sender.login} created a new project card for {obj.repository.full_name} in column {column.Name}"
             };
 
             builder.AddField(x =>
@@ -591,7 +592,7 @@ namespace HookAppDiscord.Discord
             return builder;
         }
 
-        public static EmbedBuilder GetOnProjectCardMovedMessage(ProjectCardEvent.RootObject obj)
+        public static EmbedBuilder GetOnProjectCardMovedMessage(ProjectCardEvent.RootObject obj, ProjectColumn column, Issue issue)
         {
             var builder = new EmbedBuilder()
             {
@@ -601,10 +602,36 @@ namespace HookAppDiscord.Discord
 
             builder.AddField(x =>
             {
-                x.Name = "Card note";
-                x.Value = !string.IsNullOrEmpty(obj.project_card.note) ? obj.project_card.note : "Not available";
+                x.Name = "Moved to";
+                x.Value = column.Name;
                 x.IsInline = false;
             });
+
+            if (issue == null)
+            {
+                builder.AddField(x =>
+                {
+                    x.Name = "Card note";
+                    x.Value = !string.IsNullOrEmpty(obj.project_card.note) ? obj.project_card.note : "Not available";
+                    x.IsInline = false;
+                });
+            }
+            else
+            {
+                builder.AddField(x =>
+                {
+                    x.Name = "Issue title";
+                    x.Value = issue.Title;
+                    x.IsInline = false;
+                });
+
+                builder.AddField(x =>
+                {
+                    x.Name = "Url";
+                    x.Value = issue.HtmlUrl;
+                    x.IsInline = false;
+                });
+            }
 
             builder.AddField(x =>
             {
@@ -634,13 +661,39 @@ namespace HookAppDiscord.Discord
             return builder;
         }
 
-        public static EmbedBuilder GetOnProjectCardDeletedMessage(ProjectCardEvent.RootObject obj)
+        public static EmbedBuilder GetOnProjectCardDeletedMessage(ProjectCardEvent.RootObject obj, Issue issue)
         {
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
                 Description = $"{obj.sender.login} deleted a project card from {obj.repository.full_name}"
             };
+
+            if (issue == null)
+            {
+                builder.AddField(x =>
+                {
+                    x.Name = "Card note";
+                    x.Value = !string.IsNullOrEmpty(obj.project_card.note) ? obj.project_card.note : "Not available";
+                    x.IsInline = false;
+                });
+            }
+            else
+            {
+                builder.AddField(x =>
+                {
+                    x.Name = "Issue title";
+                    x.Value = issue.Title;
+                    x.IsInline = false;
+                });
+
+                builder.AddField(x =>
+                {
+                    x.Name = "Url";
+                    x.Value = issue.HtmlUrl;
+                    x.IsInline = false;
+                });
+            }
 
             return builder;
         }
