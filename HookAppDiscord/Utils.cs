@@ -13,6 +13,18 @@ namespace HookAppDiscord
     {
         public static Random _random = new Random();
 
+        public static string GetIncreasement(long newVal, long oldVal)
+        {
+            long val = newVal - oldVal;
+
+            if (val > 0)
+                return $"+{val}";
+            else if (val < 0)
+                return $"-{val}";
+            else
+                return $"+-{val}";
+        }
+
         public static Random GetRandom()
         {
             return _random;

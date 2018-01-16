@@ -24,7 +24,7 @@ namespace HookAppDiscord.Discord.Modules
 
         [Command("stats")]
         [Summary("Gives you information about a service (services available: hookapp)")]
-        public async Task StatusAsync([Remainder] [Summary("Name of service")] string service)
+        public async Task StatusAsync([Summary("Name of service")] string service, [Summary("How many days to go back for comparison stats")] int days = 0)
         {
             _log.Info($"{Context.User.Username} executed !stats command with parameter {service}");
 
@@ -53,12 +53,23 @@ namespace HookAppDiscord.Discord.Modules
                         statsList.AddRange(JsonConvert.DeserializeObject<List<ServerStats>>(historyJson));
                     }
 
-                    var lastItem = statsList.LastOrDefault();
+                    ServerStats compared = null;
+                    if (days == 0)
+                    {
+                        compared = statsList.LastOrDefault();
+                    }
+                    else
+                    {
+                        _log.Info($"Getting history stats from {days} days ago");
+                        var queryDay = DateTime.Now.Subtract(TimeSpan.FromDays(days));
+                        compared = statsList.OrderBy(o => Math.Abs((o.date.Subtract(queryDay).Ticks))).FirstOrDefault();
+                    }
+                    
                     statsList.Add(serverStats);
                     File.WriteAllText(Const.SERVICE_HOOKAPP_HISTORY, JsonConvert.SerializeObject(statsList, Formatting.Indented));
 
                     _log.Info($"Replying with server status for service {service}");
-                    await Context.Channel.SendMessageAsync("", false, DiscordMessageFormatter.GetServiceHookappMessage(serverStats, lastItem).Build());
+                    await Context.Channel.SendMessageAsync("", false, DiscordMessageFormatter.GetServiceHookappMessage(serverStats, compared).Build());
                     break;
             }
         }

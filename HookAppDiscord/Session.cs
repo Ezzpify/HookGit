@@ -156,8 +156,8 @@ namespace HookAppDiscord
             if (!arg.Author.IsBot)
             {
                 string friendlyMessage = GetFriendlyDiscordMessage(arg);
-                _log.Info($"[Discord message] {arg.Author.Username}: {arg.Content}");
-
+                _log.Info($"[Discord message] [#{arg.Channel.Name}] {arg.Author.Username}: {arg.Content}");
+                
                 var message = _translate.GetTranslatedMessage(arg, friendlyMessage);
                 if (message != null)
                 {

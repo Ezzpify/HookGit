@@ -44,7 +44,7 @@ namespace HookAppDiscord.Discord
             if (oldStats == null)
             {
                 oldStats = new ServerStats();
-                oldStats.date = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+                oldStats.date = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
             }
 
             var ts = stats.date.Subtract(oldStats.date);
@@ -58,49 +58,49 @@ namespace HookAppDiscord.Discord
             builder.AddField(x =>
             {
                 x.Name = "Number of users";
-                x.Value = $"{oldStats.numOfUsers} -> {stats.numOfUsers}";
+                x.Value = $"{oldStats.numOfUsers} -> {stats.numOfUsers} [{Utils.GetIncreasement(stats.numOfUsers, oldStats.numOfUsers)}]";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Facebook users";
-                x.Value = $"{oldStats.facebookUsers} -> {stats.facebookUsers}";
+                x.Value = $"{oldStats.facebookUsers} -> {stats.facebookUsers} [{Utils.GetIncreasement(stats.facebookUsers, oldStats.facebookUsers)}]";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Google users";
-                x.Value = $"{oldStats.googleUsers} -> {stats.googleUsers}";
+                x.Value = $"{oldStats.googleUsers} -> {stats.googleUsers} [{Utils.GetIncreasement(stats.googleUsers, oldStats.googleUsers)}]";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Number of rates";
-                x.Value = $"{oldStats.numOfRates} -> {stats.numOfRates}";
+                x.Value = $"{oldStats.numOfRates} -> {stats.numOfRates} [{Utils.GetIncreasement(stats.numOfRates, oldStats.numOfRates)}]";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Number of matches";
-                x.Value = $"{oldStats.numOfMatches} -> {stats.numOfMatches}";
+                x.Value = $"{oldStats.numOfMatches} -> {stats.numOfMatches} [{Utils.GetIncreasement(stats.numOfMatches, oldStats.numOfMatches)}]";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Deleted accounts";
-                x.Value = $"{oldStats.deletedUsers} -> {stats.deletedUsers}";
+                x.Value = $"{oldStats.deletedUsers} -> {stats.deletedUsers} [{Utils.GetIncreasement(stats.deletedUsers, oldStats.deletedUsers)}]";
                 x.IsInline = false;
             });
 
             builder.AddField(x =>
             {
                 x.Name = "Active users in last 3 days";
-                x.Value = $"{oldStats.lastActiveUsers} -> {stats.lastActiveUsers}";
+                x.Value = $"{oldStats.lastActiveUsers} -> {stats.lastActiveUsers} [{Utils.GetIncreasement(stats.lastActiveUsers, oldStats.lastActiveUsers)}]";
                 x.IsInline = false;
             });
 

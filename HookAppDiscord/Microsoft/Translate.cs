@@ -31,7 +31,7 @@ namespace HookAppDiscord.Microsoft
             _log = log;
             _azureKey = azureKey;
             _translateTo = translateTo;
-            _accessTokenAge = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+            _accessTokenAge = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
         }
 
         public EmbedBuilder GetTranslatedMessage(SocketMessage arg, string message)
