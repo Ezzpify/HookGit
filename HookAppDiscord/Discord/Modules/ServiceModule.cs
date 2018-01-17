@@ -16,15 +16,17 @@ namespace HookAppDiscord.Discord.Modules
     public class ServiceModule : ModuleBase<SocketCommandContext>
     {
         private readonly ILog _log;
+        private readonly List<ServerStats> _stats;
 
-        public ServiceModule(ILog log)
+        public ServiceModule(ILog log, List<ServerStats> stats)
         {
             _log = log;
+            _stats = stats;
         }
 
         [Command("stats")]
         [Summary("Gives you information about a service (services available: hookapp)")]
-        public async Task StatusAsync([Summary("Name of service")] string service, [Summary("How many days to go back for comparison stats")] int days = 0)
+        public async Task StatusAsync([Summary("Name of service")] string service, [Summary("How many hours to go back for comparison stats")]  int hours = 0)
         {
             _log.Info($"{Context.User.Username} executed !stats command with parameter {service}");
 
@@ -36,40 +38,29 @@ namespace HookAppDiscord.Discord.Modules
             switch (service)
             {
                 case "hookapp":
-                    var serverStats = ApiEndpoint.GetServerStats();
-                    if (!string.IsNullOrWhiteSpace(serverStats.error))
-                    {
-                        _log.Error($"Unable to get server stats for {service}. Error: {serverStats.error}");
-                        builder.Description = $"Encountered an error while getting stats:\n{serverStats.error}";
-                        await Context.Channel.SendMessageAsync("", false, builder.Build());
-                        return;
-                    }
-
-                    var statsList = new List<ServerStats>();
-
-                    if (File.Exists(Const.SERVICE_HOOKAPP_HISTORY))
-                    {
-                        string historyJson = File.ReadAllText(Const.SERVICE_HOOKAPP_HISTORY);
-                        statsList.AddRange(JsonConvert.DeserializeObject<List<ServerStats>>(historyJson));
-                    }
-
+                    ServerStats stats = _stats.Where(o => string.IsNullOrEmpty(o.error)).LastOrDefault();
                     ServerStats compared = null;
-                    if (days == 0)
+
+                    if (stats == null)
                     {
-                        compared = statsList.LastOrDefault();
+                        _log.Info($"Ho history of stats available. Forcefully getting one from server.");
+                        stats = ApiEndpoint.GetServerStats();
+                    }
+
+                    var historyList = _stats.Where(o => string.IsNullOrEmpty(o.error)).Take(_stats.Count() - 1).ToList();
+                    if (hours.Equals(0))
+                    {
+                        compared = historyList.LastOrDefault();
                     }
                     else
                     {
-                        _log.Info($"Getting history stats from {days} days ago");
-                        var queryDay = DateTime.Now.Subtract(TimeSpan.FromDays(days));
-                        compared = statsList.OrderBy(o => Math.Abs((o.date.Subtract(queryDay).Ticks))).FirstOrDefault();
+                        _log.Info($"Getting history stats from {hours} hours ago");
+                        var queryDay = DateTime.Now.Subtract(TimeSpan.FromHours(hours));
+                        compared = historyList.OrderBy(o => Math.Abs((o.date.Subtract(queryDay).Ticks))).FirstOrDefault();
                     }
-                    
-                    statsList.Add(serverStats);
-                    File.WriteAllText(Const.SERVICE_HOOKAPP_HISTORY, JsonConvert.SerializeObject(statsList, Formatting.Indented));
 
                     _log.Info($"Replying with server status for service {service}");
-                    await Context.Channel.SendMessageAsync("", false, DiscordMessageFormatter.GetServiceHookappMessage(serverStats, compared).Build());
+                    await Context.Channel.SendMessageAsync("", false, DiscordMessageFormatter.GetServiceHookappMessage(stats, compared).Build());
                     break;
             }
         }

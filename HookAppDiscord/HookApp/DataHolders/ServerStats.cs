@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace HookAppDiscord.HookApp.DataHolders
 {
-    class ServerStats
+    public class ServerStats
     {
         public DateTime date { get; set; }
 

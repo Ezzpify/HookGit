@@ -25,6 +25,7 @@ using HookAppDiscord.Microsoft;
 using HookAppDiscord.WCF;
 using HookAppDiscord.Github;
 using HookAppDiscord.HookApp;
+using HookAppDiscord.HookApp.DataHolders;
 using HookAppDiscord.Discord;
 using HookAppDiscord.Github.EventHolders;
 
@@ -52,6 +53,9 @@ namespace HookAppDiscord
 
         private CleverbotSession _cleverbot;
 
+        private Timer _serviceHookappTimer;
+        private List<ServerStats> _serviceHookappStats;
+
         public Session(Settings settings)
         {
             _settings = settings;
@@ -66,6 +70,12 @@ namespace HookAppDiscord
             GithubWebhookDelivery callback = GithubDelivery;
             _wcfServer = new WCFServer(callback);
             _wcfServer.Start();
+
+            Console.WriteLine("Getting stats history...");
+            if (File.Exists(Const.SERVICE_HOOKAPP_HISTORY))
+                _serviceHookappStats = JsonConvert.DeserializeObject<List<ServerStats>>(File.ReadAllText(Const.SERVICE_HOOKAPP_HISTORY));
+            else
+                _serviceHookappStats = new List<ServerStats>();
 
             Console.WriteLine("Setting up github access...");
             var credentials = new InMemoryCredentialStore(new Credentials(_settings.GithubToken));
@@ -92,6 +102,7 @@ namespace HookAppDiscord
                 .AddSingleton(_githubClient)
                 .AddSingleton(_settings)
                 .AddSingleton(_log)
+                .AddSingleton(_serviceHookappStats)
                 .BuildServiceProvider();
             
             _commands.AddModulesAsync(Assembly.GetEntryAssembly());
@@ -145,6 +156,10 @@ namespace HookAppDiscord
             _statusChannel = (ISocketMessageChannel)_client.GetChannel(_settings.StatusChannel);
 
             _statusTimer = new Timer(ServerStatusTimer, null, 0, (int)TimeSpan.FromMinutes(_settings.StatusPingInterval).TotalMilliseconds);
+
+            DateTime dueTime = new DateTime(DateTime.Today.Year, DateTime.Today.Month, DateTime.Today.Day, (DateTime.Now.Hour + 1), 0, 0);
+            TimeSpan timeRemaining = dueTime.Subtract(DateTime.Now);
+            _serviceHookappTimer = new Timer(ServieHookappTimer, null, (int)timeRemaining.TotalMilliseconds, (int)TimeSpan.FromHours(1).TotalMilliseconds);
 
             Console.Clear();
             Console.WriteLine(ascii);
@@ -213,6 +228,13 @@ namespace HookAppDiscord
             return Task.CompletedTask;
         }
 
+        private void ServieHookappTimer(Object o)
+        {
+            var serverStats = ApiEndpoint.GetServerStats();
+            _serviceHookappStats.Add(serverStats);
+            File.WriteAllText(Const.SERVICE_HOOKAPP_HISTORY, JsonConvert.SerializeObject(_serviceHookappStats, Formatting.Indented));
+        }
+
         private void ServerStatusTimer(Object o)
         {
             IRestResponse response = null;
@@ -253,7 +275,7 @@ namespace HookAppDiscord
                 _statusResponseErrors++;
                 _log.Error($"Server response was null. If this happens {3 - _statusResponseErrors} more time(s) I will notify the Discord channel.");
 
-                if (_statusResponseErrors >= 3)
+                if (_statusResponseErrors >= 2)
                 {
                     _log.Error($"Server didn't respond 3 times in a row. I will now notify the Discord channel.");
                     _statusChannel.SendMessageAsync("", false, DiscordMessageFormatter.GetRestResponseFailedMessage(exceptionMessage, _settings.ServerEndpointStatus).Build());
