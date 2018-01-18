@@ -20,7 +20,7 @@ namespace HookAppDiscord
             if (val > 0)
                 return $"+{val}";
             else if (val < 0)
-                return $"-{val}";
+                return $"{val}";
             else
                 return $"+-{val}";
         }

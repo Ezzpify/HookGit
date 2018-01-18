@@ -48,12 +48,13 @@ namespace HookAppDiscord.Discord
                 oldStats.date = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
             }
 
-            var ts = stats.date.Subtract(oldStats.date);
+            var lastStatsTs = DateTime.Now.Subtract(stats.date);
+            var historyStatsTs = DateTime.Now.Subtract(oldStats.date);
 
             var builder = new EmbedBuilder()
             {
                 Color = Const.DISCORD_EMBED_COLOR,
-                Description = $"Here are some stats for HookApp with data difference from {ts.Days} days, {ts.Hours} hours, {ts.Minutes} minutes and {ts.Seconds} seconds ago."
+                Description = $"Here are some stats for HookApp from {lastStatsTs.Minutes} minutes ago with data difference from {historyStatsTs.Days} days, {historyStatsTs.Hours} hours and {historyStatsTs.Minutes} minutes ago."
             };
 
             builder.AddField(x =>
