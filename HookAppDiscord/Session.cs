@@ -437,7 +437,7 @@ namespace HookAppDiscord
             switch (obj.action)
             {
                 case "created":
-                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardCreatedMessage(obj, column));
+                    SendEventMessage(DiscordMessageFormatter.GetOnProjectCardCreatedMessage(obj, column, issue));
                     break;
 
                 case "edited":
