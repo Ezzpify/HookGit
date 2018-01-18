@@ -119,36 +119,40 @@ namespace HookAppDiscord.Discord.Modules
 
             _log.Info($"Targeted GitHub user is: {githubUser}");
 
-            var update = new IssueUpdate();
-            update.AddAssignee(githubUser);
-            
-            var newIssue = await _client.Issue.Update(owner, repo, number, update);
-            if (newIssue != null)
+            var issue = await _client.Issue.Get(owner, repo, number);
+            if (issue != null)
             {
-                builder.Description = $"{githubUser} has been assigned to issue #{newIssue.Number}\nCurrent assigneed:";
-                foreach (var assignee in newIssue.Assignees)
+                var update = issue.ToUpdate();
+                update.AddAssignee(githubUser);
+
+                var newIssue = await _client.Issue.Update(owner, repo, number, update);
+                if (newIssue != null)
                 {
+                    builder.Description = $"{githubUser} has been assigned to issue #{newIssue.Number}\nCurrent assigneed:";
+                    foreach (var assignee in newIssue.Assignees)
+                    {
+                        builder.AddField(x =>
+                        {
+                            x.Name = assignee.Login;
+                            x.Value = assignee.HtmlUrl;
+                            x.IsInline = false;
+                        });
+                    }
+
                     builder.AddField(x =>
                     {
-                        x.Name = assignee.Login;
-                        x.Value = assignee.HtmlUrl;
+                        x.Name = "Url";
+                        x.Value = newIssue.HtmlUrl;
                         x.IsInline = false;
                     });
+
+                    _log.Info($"User {githubUser} has been assigned to issue #{number}");
+                    await Context.Channel.SendMessageAsync("", false, builder.Build());
                 }
-
-                builder.AddField(x =>
+                else
                 {
-                    x.Name = "Url";
-                    x.Value = newIssue.HtmlUrl;
-                    x.IsInline = false;
-                });
-
-                _log.Info($"User {githubUser} has been assigned to issue #{number}");
-                await Context.Channel.SendMessageAsync("", false, builder.Build());
-            }
-            else
-            {
-                _log.Error($"Unable to assign user to issue. Issue returned null.");
+                    _log.Error($"Unable to assign user to issue. Issue returned null.");
+                }
             }
         }
 
@@ -171,7 +175,8 @@ namespace HookAppDiscord.Discord.Modules
                 {
                     builder.AddField(x =>
                     {
-                        x.Name = labelName;
+                        x.Name = "Label name";
+                        x.Value = labelName;
                         x.IsInline = false;
                     });
                 }
@@ -180,35 +185,42 @@ namespace HookAppDiscord.Discord.Modules
                 return;
             }
 
-            var update = new IssueUpdate();
-            update.AddLabel(label);
-            
-            var newIssue = await _client.Issue.Update(owner, repo, number, update);
-            if (newIssue != null)
+            var issue = await _client.Issue.Get(owner, repo, number);
+            if (issue != null)
             {
-                builder.Description = $"Label {label} has been assigned to issue #{newIssue.Number}\nCurrent labels:";
-                foreach (var labelName in newIssue.Labels.Select(o => o.Name))
+                var update = issue.ToUpdate();
+                update.AddLabel(label);
+
+                var newIssue = await _client.Issue.Update(owner, repo, number, update);
+                if (newIssue != null)
                 {
+                    builder.Description = $"Label {label} has been assigned to issue #{newIssue.Number}";
+
                     builder.AddField(x =>
                     {
-                        x.Name = labelName;
+                        x.Name = "Current labels";
+                        x.Value = string.Join(", ", newIssue.Labels.Select(o => o.Name));
                         x.IsInline = false;
                     });
+
+                    builder.AddField(x =>
+                    {
+                        x.Name = "Url";
+                        x.Value = newIssue.HtmlUrl;
+                        x.IsInline = false;
+                    });
+
+                    _log.Info($"Assigned label {label} to issue #{number}");
+                    await Context.Channel.SendMessageAsync("", false, builder.Build());
                 }
-
-                builder.AddField(x =>
+                else
                 {
-                    x.Name = "Url";
-                    x.Value = newIssue.HtmlUrl;
-                    x.IsInline = false;
-                });
-
-                _log.Info($"Assigned label {label} to issue #{number}");
-                await Context.Channel.SendMessageAsync("", false, builder.Build());
+                    _log.Error($"Unable to label issue. Issue returned null.");
+                }
             }
             else
             {
-                _log.Error($"Unable to label issue. Issue returned null.");
+                _log.Error("Unable to label issue. Could not get issue.");
             }
         }
 
